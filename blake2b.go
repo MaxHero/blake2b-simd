@@ -11,7 +11,6 @@ package blake2b
 import (
 	"encoding/binary"
 	"errors"
-	"hash"
 )
 
 const (
@@ -22,7 +21,7 @@ const (
 	KeySize    = 64  // maximum size of key
 )
 
-type digest struct {
+type Digest struct {
 	h  [8]uint64       // current chain value
 	t  [2]uint64       // message bytes counter
 	f  [2]uint64       // finalization flags
@@ -102,7 +101,7 @@ func verifyConfig(c *Config) error {
 // New returns a new hash.Hash configured with the given Config.
 // Config can be nil, in which case the default one is used, calculating 64-byte digest.
 // Returns non-nil error if Config contains invalid parameters.
-func New(c *Config) (hash.Hash, error) {
+func New(c *Config) (*Digest, error) {
 	if c == nil {
 		c = defaultConfig
 	} else {
@@ -114,14 +113,14 @@ func New(c *Config) (hash.Hash, error) {
 			return nil, err
 		}
 	}
-	d := new(digest)
+	d := new(Digest)
 	d.initialize(c)
 	return d, nil
 }
 
 // initialize initializes digest with the given
 // config, which must be non-nil and verified.
-func (d *digest) initialize(c *Config) {
+func (d *Digest) initialize(c *Config) {
 	// Create parameter block.
 	var p [BlockSize]byte
 	p[0] = c.Size
@@ -164,15 +163,15 @@ func (d *digest) initialize(c *Config) {
 }
 
 // New512 returns a new hash.Hash computing the BLAKE2b 64-byte checksum.
-func New512() hash.Hash {
-	d := new(digest)
+func New512() *Digest {
+	d := new(Digest)
 	d.initialize(defaultConfig)
 	return d
 }
 
 // New256 returns a new hash.Hash computing the BLAKE2b 32-byte checksum.
-func New256() hash.Hash {
-	d := new(digest)
+func New256() *Digest {
+	d := new(Digest)
 	d.initialize(config256)
 	return d
 }
@@ -180,7 +179,7 @@ func New256() hash.Hash {
 // NewMAC returns a new hash.Hash computing BLAKE2b prefix-
 // Message Authentication Code of the given size in bytes
 // (up to 64) with the given key (up to 64 bytes in length).
-func NewMAC(outBytes uint8, key []byte) hash.Hash {
+func NewMAC(outBytes uint8, key []byte) *Digest {
 	d, err := New(&Config{Size: outBytes, Key: key})
 	if err != nil {
 		panic(err.Error())
@@ -190,7 +189,7 @@ func NewMAC(outBytes uint8, key []byte) hash.Hash {
 
 // Reset resets the state of digest to the initial state
 // after configuration and keying.
-func (d *digest) Reset() {
+func (d *Digest) Reset() {
 	copy(d.h[:], d.ih[:])
 	d.t[0] = 0
 	d.t[1] = 0
@@ -203,12 +202,12 @@ func (d *digest) Reset() {
 }
 
 // Size returns the digest size in bytes.
-func (d *digest) Size() int { return int(d.size) }
+func (d *Digest) Size() int { return int(d.size) }
 
 // BlockSize returns the algorithm block size in bytes.
-func (d *digest) BlockSize() int { return BlockSize }
+func (d *Digest) BlockSize() int { return BlockSize }
 
-func (d *digest) Write(p []byte) (nn int, err error) {
+func (d *Digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	left := BlockSize - d.nx
 	if len(p) > left {
@@ -233,14 +232,14 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 // Sum returns the calculated checksum.
-func (d *digest) Sum(in []byte) []byte {
+func (d *Digest) Sum(in []byte) []byte {
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
 	hash := d0.checkSum()
 	return append(in, hash[:d0.size]...)
 }
 
-func (d *digest) checkSum() [Size]byte {
+func (d *Digest) checkSum() [Size]byte {
 	// Do not create unnecessary copies of the key.
 	if d.isKeyed {
 		for i := 0; i < len(d.paddedKey); i++ {
@@ -284,7 +283,7 @@ func (d *digest) checkSum() [Size]byte {
 
 // Sum512 returns a 64-byte BLAKE2b hash of data.
 func Sum512(data []byte) [64]byte {
-	var d digest
+	var d Digest
 	d.initialize(defaultConfig)
 	d.Write(data)
 	return d.checkSum()
@@ -292,7 +291,7 @@ func Sum512(data []byte) [64]byte {
 
 // Sum256 returns a 32-byte BLAKE2b hash of data.
 func Sum256(data []byte) (out [32]byte) {
-	var d digest
+	var d Digest
 	d.initialize(config256)
 	d.Write(data)
 	sum := d.checkSum()

@@ -18,6 +18,6 @@
 
 package blake2b
 
-func compress(d *digest, p []uint8) {
+func compress(d *Digest, p []uint8) {
 	compressGeneric(d, p)
 }

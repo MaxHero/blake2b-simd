@@ -22,7 +22,7 @@ package blake2b
 //go:noescape
 func blockSSELoop(p []uint8, in, iv, t, f, shffle, out []uint64)
 
-func compressSSE(d *digest, p []uint8) {
+func compressSSE(d *Digest, p []uint8) {
 	var (
 		in     [8]uint64
 		out    [8]uint64
